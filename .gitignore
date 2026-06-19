@@ -1,0 +1,11 @@
+# figma2web — local/transient artifacts
+.context/
+tools/visual-diff/.venv/
+tools/node_modules/
+**/__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.mcp.json
+.browser-observer/

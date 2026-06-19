@@ -1,0 +1,13 @@
+{
+  "_comment": "Copy to .mcp.json and set the path to your mcp-browser-observer install. Claude Code expands ${HOME} and other env vars. Restart Claude Code and approve the project MCP after editing.",
+  "mcpServers": {
+    "browser-observer": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${HOME}/.context/mcp-browser-observer/dist/index.js"],
+      "env": {
+        "BROWSER_OBSERVER_BLOCK_PRIVATE_IPS": "false"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "figma2web-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Figma REST ingest + geometry-based layout reconstruction tools for the figma2web skill",
+  "bin": {
+    "figma-ingest": "./figma-ingest.js",
+    "layout-reconstruct": "./layout-reconstruct.js"
+  },
+  "scripts": {
+    "ingest": "node figma-ingest.js",
+    "reconstruct": "node layout-reconstruct.js"
+  },
+  "engines": { "node": ">=20" }
+}
