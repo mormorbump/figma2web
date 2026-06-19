@@ -33,12 +33,12 @@ flowchart LR
 
 ## アーキテクチャ
 
-`figma2web` スキルが全体をオーケストレーションし、中核ツール（`tools/`）と連携スキルを駆動する。観測能力は MCP に集約。
+`figma2web` スキルが全体をオーケストレーションし、**スキルに同梱した中核ツール**（`.claude/skills/figma2web/tools/`）と連携スキルを駆動する。観測能力は MCP に集約。
 
 ```mermaid
 flowchart TB
     SKILL["figma2web skill<br/>オーケストレーション"]
-    subgraph T["tools/（中核・依存ゼロ）"]
+    subgraph T["tools/（スキル同梱・依存ゼロ）"]
       ING["figma-ingest<br/>REST取得・正規化・参照PNG"]
       REC["layout-reconstruct<br/>ジオメトリ→構造再構築"]
       VD["visual-diff<br/>領域別差分・装飾除外"]
@@ -66,18 +66,26 @@ flowchart TB
 ## 構成
 
 ```
-tools/                      依存ゼロの Node + Python ツール（中核）
-  figma-ingest.js           REST取得→model.json/ref.png/assets/index.json/text_boxes.json
+.claude/skills/
+  figma2web/                オーケストレーションスキル（中核ツールを同梱＝自己完結）
+    SKILL.md
+    tools/                  依存ゼロの Node + Python ツール
+      figma-ingest.js       REST取得→model.json/ref.png/assets/index.json/text_boxes.json
                             （componentFamilies でファミリー＋バリアントも解決）
-  layout-reconstruct.js     絶対ジオメトリ→候補IR + decoration_boxes.json
-  lib/                      figma-url / figma-rest / normalize / geometry / fonts / env
-  visual-diff/              overlay.py（構造目視）/ visual_diff.py（領域別差分・装飾除外）
-  README.md
-.claude/skills/             figma2web（オーケストレーション）＋ frontend-observation /
-                            playwright-e2e / web-frontend-builder（観測・検証・生成。同梱・カスタマイズ済み）
+      layout-reconstruct.js 絶対ジオメトリ→候補IR + decoration_boxes.json
+      lib/                  figma-url / figma-rest / normalize / geometry / fonts / env
+      visual-diff/          overlay.py（構造目視）/ visual_diff.py（領域別差分・装飾除外）
+      README.md
+  frontend-observation/     観測（ゲートA/B）。同梱・カスタマイズ済み
+  playwright-e2e/           回帰テスト。同梱・カスタマイズ済み
+  web-frontend-builder/     GENERATE 被委譲。同梱・カスタマイズ済み
+.claude-plugin/             プラグイン配布用マニフェスト（plugin.json / marketplace.json）
 .env.example                Figma トークン設定の雛形
 .mcp.json.example           browser-observer MCP（localhost許可）の雛形
 ```
+
+ツールは figma2web スキルの中（`tools/`）に同梱され、スキルは絶対パス `${CLAUDE_SKILL_DIR}/tools/...`
+で参照する。**スキルを置けばツールも必ず付いてくる**ので、コピー漏れで動かない問題が起きない。
 
 ## 連携スキルと原典
 
@@ -94,22 +102,53 @@ MCP は `.mcp.json.example` を参考に設定し、`BROWSER_OBSERVER_BLOCK_PRIV
 
 ## セットアップ
 
-スキル（`.claude/skills/`）は同梱済み。**このリポジトリ内で作業すれば Claude Code が自動認識**するので配置作業は不要。あとは環境を一度だけ整える:
+### 1) スキルを導入する
+
+別のアプリ（自分の Next.js プロジェクト等）で使うなら、**プラグイン導入が最短**。Claude Code で 2 コマンド:
+
+```text
+/plugin marketplace add mormorbump/figma2web
+/plugin install figma2web@figma2web
+```
+
+これで figma2web スキル＋同梱ツール（`tools/`）＋検証用の連携スキル（frontend-observation /
+playwright-e2e / web-frontend-builder）が**一括で入る**。スキルとツールが 1 つにまとまっているので、
+コピー漏れでツールが見つからない、という問題は起きない。以後そのアプリのディレクトリで Claude Code を
+起動すれば自動でスキルが効く。
+
+<details><summary>プラグインを使わず手で配置する場合</summary>
+
+- このリポジトリを clone してその中で作業する → `.claude/skills/` を Claude Code が自動認識（配置不要）。
+- 別アプリへ手でコピーする → `.claude/skills/` を**ディレクトリごと**そのアプリ直下（または
+  `~/.claude/skills/`）にコピーする。ツールはスキル内に同梱されているので一緒に付いてくる。
+
+> upstream の `frontend-observation` / `playwright-e2e` / `web-frontend-builder` を別途入れている場合、
+> 本プラグイン同梱のカスタマイズ版と同名になる。figma2web では同梱版が前提なので、二重導入は避ける。
+</details>
+
+### 2) Figma トークンを設定する（対象プロジェクト側）
+
+ツールはトークンを **環境変数か `.env`** から読む（argv には絶対に渡さない）。対象アプリのプロジェクト
+ルートで:
 
 ```bash
-# 1) Figma トークン（scope: File content -> read）
-cp .env.example .env && $EDITOR .env          # FIGMA_SECRET_KEY と FIGMA_FILE_URL を設定
-#   FIGMA_FILE_URL = 対象サイト/フレームの Figma 共有URL。ツールは常にこれを既定ターゲットにする
+cp .env.example .env && $EDITOR .env   # FIGMA_SECRET_KEY と FIGMA_FILE_URL を設定
+#   scope は「File content -> read」。FIGMA_FILE_URL = 対象フレームの Figma 共有URL（既定ターゲット）
+#   または: export FIGMA_SECRET_KEY=figd_xxx  （.env を作らず環境変数でも可）
+```
 
-# 2) Python 差分ツール
-cd tools/visual-diff && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && cd -
+### 3) browser-observer MCP を設定する（対象プロジェクト側）
 
-# 3) browser-observer MCP（localhost観測を許可）
+MCP はプラグインに同梱できない（外部バイナリ＋パスがマシン依存）ので、対象アプリごとに `.mcp.json` を置く:
+
+```bash
 cp .mcp.json.example .mcp.json && $EDITOR .mcp.json   # mcp-browser-observer のパスを設定
+#   BROWSER_OBSERVER_BLOCK_PRIVATE_IPS=false を必ず付ける（localhost 観測のため）
 #   Claude Code を再起動してプロジェクト MCP を承認する
 ```
 
-> 自分の別アプリで使う場合のみ、`.claude/skills/` をそのアプリ直下（または `~/.claude/skills/`）にコピーする。
+> Python 差分ツールの venv は**初回実行時にスキルが自分で** `.context/figma2web/.venv` に作るので、
+> 手動セットアップは不要（Node ツールは依存ゼロ＝`npm install` も不要）。
 
 ## 使い方
 
@@ -122,10 +161,12 @@ cp .mcp.json.example .mcp.json && $EDITOR .mcp.json   # mcp-browser-observer の
 <details><summary>各ツールを手動・単体で叩く場合（デバッグ/CI 用）</summary>
 
 ```bash
-node tools/figma-ingest.js --list                              # フレーム一覧（.env の FIGMA_FILE_URL を参照）
-node tools/figma-ingest.js --node <id>                         # 取得（同上。--node でフレーム選択）
-node tools/layout-reconstruct.js --in .context/figma/<slug>    # 構造再構築
-tools/visual-diff/.venv/bin/python tools/visual-diff/overlay.py --in .context/figma/<slug>  # 構造目視
+# clone した repo 内での例。plugin 導入時は SKILL=${CLAUDE_SKILL_DIR}
+SKILL=.claude/skills/figma2web
+node "$SKILL/tools/figma-ingest.js" --list                             # フレーム一覧（.env の FIGMA_FILE_URL を参照）
+node "$SKILL/tools/figma-ingest.js" --node <id>                        # 取得（同上。--node でフレーム選択）
+node "$SKILL/tools/layout-reconstruct.js" --in .context/figma/<slug>   # 構造再構築
+.context/figma2web/.venv/bin/python "$SKILL/tools/visual-diff/overlay.py" --in .context/figma/<slug>  # 構造目視
 ```
 </details>
 

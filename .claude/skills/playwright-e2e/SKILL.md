@@ -231,7 +231,7 @@ Canvas の UI の問題（パネルのシーム、セグメント化されたリ
 ### 差分ツールの使い分け（imgdiff.py より visual-diff を優先）
 
 - 同梱の `scripts/imgdiff.py` は**単純な RMS 全面比較**である。Figma 再現では、フォントレンダラ差や意図的な逸脱を全面差分が罰してしまうため、これを合否ゲートにしない。
-- Figma 再現の差分は `tools/visual-diff/visual_diff.py`（プロジェクト同梱、OpenCV ベース）を優先して使う。これは**領域別（連結成分）比較＋テキスト領域除外**（テキストはピクセルでなくレイアウトボックスで比較）を行う。差分→LLM 修正の領域 crop 用途にも使う。
+- Figma 再現の差分は `${CLAUDE_SKILL_DIR}/../figma2web/tools/visual-diff/visual_diff.py`（figma2web スキルに同梱、OpenCV ベース、`.context/figma2web/.venv` の python で実行）を優先して使う。これは**領域別（連結成分）比較＋テキスト領域除外**（テキストはピクセルでなくレイアウトボックスで比較）を行う。差分→LLM 修正の領域 crop 用途にも使う。figma2web が無い repo で本スキル単体起動した場合のみ上の `scripts/imgdiff.py` にフォールバック。
 
 ### 恒久回帰テストの baseline 戦略（役割を分ける）
 

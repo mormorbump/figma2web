@@ -4,7 +4,6 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 let loaded = false;
 
@@ -19,8 +18,11 @@ export function loadDotenv() {
     if (up === dir) break;
     dir = up;
   }
-  const here = dirname(fileURLToPath(import.meta.url));
-  candidates.push(join(here, '..', '..', '.env')); // project root from tools/lib
+  // The primary lookup is the cwd up-search above (cwd = the target app's
+  // project root, where the user keeps .env / FIGMA_FILE_URL). The token can
+  // also come purely from an exported env var — loadDotenv only fills unset
+  // keys. No skill-relative fallback: tools now live inside the skill dir and
+  // a user .env never sits next to them.
 
   for (const f of candidates) {
     if (!existsSync(f)) continue;

@@ -1,0 +1,15 @@
+{
+  "name": "figma2web",
+  "description": "Figma デザインを Next.js にピクセル忠実再現するオーケストレーションスキル。tools/（figma-ingest / layout-reconstruct / visual-diff）を同梱し、検証用の連携スキルも束ねる。",
+  "version": "0.1.0",
+  "author": { "name": "kazuki matsumoto" },
+  "homepage": "https://github.com/mormorbump/figma2web",
+  "license": "MIT",
+  "keywords": ["figma", "nextjs", "frontend", "pixel-perfect", "visual-diff"],
+  "skills": [
+    "./.claude/skills/figma2web",
+    "./.claude/skills/frontend-observation",
+    "./.claude/skills/playwright-e2e",
+    "./.claude/skills/web-frontend-builder"
+  ]
+}

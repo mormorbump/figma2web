@@ -11,6 +11,7 @@
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as fsp from 'node:fs/promises';
 import { parseFigmaUrl, nodeIdToSlug } from './lib/figma-url.js';
 import { getNodes, getFile, getImageRenders, downloadTo } from './lib/figma-rest.js';
@@ -168,7 +169,7 @@ async function main() {
   };
   await writeFile(join(outDir, 'index.json'), JSON.stringify(index, null, 2));
   console.log(`Done. Output: ${outDir}`);
-  console.log('Next: node layout-reconstruct.js --in ' + outDir);
+  console.log('Next: node "' + fileURLToPath(new URL('layout-reconstruct.js', import.meta.url)) + '" --in ' + outDir);
 }
 
 function orient(r) {

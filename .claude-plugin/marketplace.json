@@ -1,0 +1,11 @@
+{
+  "name": "figma2web",
+  "owner": { "name": "kazuki matsumoto" },
+  "plugins": [
+    {
+      "name": "figma2web",
+      "source": "./",
+      "description": "Figma → Next.js ピクセル忠実再現スキル + tools 一式（figma-ingest / layout-reconstruct / visual-diff）と検証用連携スキルを同梱。"
+    }
+  ]
+}

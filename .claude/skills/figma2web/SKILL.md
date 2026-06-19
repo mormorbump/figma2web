@@ -18,7 +18,7 @@ Figma デザインを **見た目はピクセル単位で忠実に、実装は W
 
 | ゲート | 測るもの | 方法 |
 |---|---|---|
-| **A 静的忠実度** | デザイン幅で同じ見た目か | フリーズ描画（レスポンシブ無効・デザイン幅固定）で参照PNGと**領域別**比較。`tools/visual-diff/visual_diff.py` |
+| **A 静的忠実度** | デザイン幅で同じ見た目か | フリーズ描画（レスポンシブ無効・デザイン幅固定）で参照PNGと**領域別**比較。`${CLAUDE_SKILL_DIR}/tools/visual-diff/visual_diff.py` |
 | **B 実装品質** | Webとして正しいか | 375/750/desktopでoverflow無し・ランドマーク/見出し・状態(hover/focus)。**ピクセル差分しない** |
 
 差分ループ（修正の自動反復）が駆動するのは **ゲートA だけ**。意図的な逸脱はゲートBで担保する。
@@ -29,7 +29,12 @@ Figma デザインを **見た目はピクセル単位で忠実に、実装は W
 - **対象サイト/フレームの Figma 共有URL（`node-id` 付き推奨）を `.env` の `FIGMA_FILE_URL` に設定する。** 以降ツールはこれを既定ターゲットにするので、各コマンドで URL を渡さない（`--node` でフレーム選択のみ）。トークンも `.env` から自動ロードされるので `FIGMA_TOKEN=…` の前置きも不要。
 - `mcp-browser-observer` はプロジェクトの `.mcp.json` で `BROWSER_OBSERVER_BLOCK_PRIVATE_IPS=false` を設定済み（localhost 観測のため）。初回はプロジェクトMCPの承認が必要。
 - 対象アプリで `npm install` 済みであること（dev サーバ起動＝VERIFY の前提）。
-- `tools/` の依存: Node20+（figma-ingest/layout-reconstruct は依存ゼロ）。`tools/visual-diff` は `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`。
+- **ツールのパス**: 本スキルに同梱の `tools/` を使う。コマンドは常に絶対パス `${CLAUDE_SKILL_DIR}/tools/...` で叩く（project/personal/plugin のどのモードでも CWD 非依存で解決される）。出力（`.context/figma/...` 等）は CWD＝対象アプリのプロジェクトルート相対。
+- ツール依存: Node 20+ のみ（figma-ingest/layout-reconstruct は依存ゼロ、`npm install` 不要）。Python 側（visual-diff）は **初回に venv を `.context/figma2web/.venv` へ自前で作る**:
+  ```
+  python3 -m venv .context/figma2web/.venv && .context/figma2web/.venv/bin/pip install -r "${CLAUDE_SKILL_DIR}/tools/visual-diff/requirements.txt"
+  ```
+  以降の Python 実行は `.context/figma2web/.venv/bin/python "${CLAUDE_SKILL_DIR}/tools/visual-diff/<script>.py"`。venv をプロジェクト側 `.context` に置くのは、plugin cache が更新で消えても再生成でき、全モードでパスが一致するため。
 - `mcp-browser-observer` MCP が接続済みであること（実ブラウザ観測）。
 - 観測は dev の `/sample` basePath 配下を `BROWSER_OBSERVER_BLOCK_PRIVATE_IPS=false` で。
 
@@ -39,13 +44,13 @@ Figma デザインを **見た目はピクセル単位で忠実に、実装は W
 
 ### 0. ターゲット選定
 ```
-node tools/figma-ingest.js --list
+node "${CLAUDE_SKILL_DIR}/tools/figma-ingest.js" --list
 ```
 `.env` の `FIGMA_FILE_URL` のファイルからフレーム一覧を出し、node-id を確認。最初は**代表 1 フレーム**に絞る。
 
 ### 1. INGEST
 ```
-node tools/figma-ingest.js --node <id> --out .context/figma --scale 2
+node "${CLAUDE_SKILL_DIR}/tools/figma-ingest.js" --node <id> --out .context/figma --scale 2
 ```
 （URL は `.env` の `FIGMA_FILE_URL` を参照。`--node` でフレーム選択のみ。`FIGMA_FILE_URL` が node-id 付きなら `--node` も省略可。）
 出力: `.context/figma/<slug>/{model.json, ref.png, assets/, index.json}`。
@@ -53,13 +58,13 @@ node tools/figma-ingest.js --node <id> --out .context/figma --scale 2
 
 ### 2. RECONSTRUCT（候補生成）
 ```
-node tools/layout-reconstruct.js --in .context/figma/<slug>
+node "${CLAUDE_SKILL_DIR}/tools/layout-reconstruct.js" --in .context/figma/<slug>
 ```
 出力: `ir-candidates.json`（背景分離・包含・行/列/グリッド・重なり・部品の**候補**）。これは確定ではない。
 
 ### 3. 早期チェックポイント（ここで必ず一度止める）
 ```
-tools/visual-diff/.venv/bin/python tools/visual-diff/overlay.py --in .context/figma/<slug>
+.context/figma2web/.venv/bin/python "${CLAUDE_SKILL_DIR}/tools/visual-diff/overlay.py" --in .context/figma/<slug>
 ```
 `ir-overlay.png` を **Read して目視**。色付き枠が視覚的グルーピングと合っているか確認。
 - **参照PNG `ref.png` と `ir-overlay.png` を見比べ、LLM（あなた）が最終構造を決める。** flex/grid/absolute、グルーピング、セマンティック役割（header/nav/section/button/list…）を確定。
@@ -84,7 +89,7 @@ dev 起動（`BROWSER_OBSERVER_BLOCK_PRIVATE_IPS=false`）→ `http://localhost:
 
 **ゲートA ループ（≤6回・改善<0.01で早期終了）:**
 1. **デザイン幅・DPR を参照に一致させて** `actual.png` を撮る（参照は scale2＝例 2880px 幅）。既定ビューポート(1280px)では差分が無意味。ヘッドレス Chrome を `--headless --force-device-scale-factor=2 --window-size=1440,<H> --screenshot` で駆動するか、actual を 2880px 幅にリサイズしてから diff。
-2. `visual_diff.py --ref ref.png --actual actual.png --text-boxes text_boxes.json --decoration-boxes decoration_boxes.json --scale 2`（`text_boxes.json`＝INGEST 自動生成、`decoration_boxes.json`＝RECONSTRUCT 自動生成。`--scale` は ingest と同値）。**`contentFidelity`（テキスト＋装飾除外の実コンテンツ忠実度）で判断**。残差が装飾背景なら構造はOK。
+2. `.context/figma2web/.venv/bin/python "${CLAUDE_SKILL_DIR}/tools/visual-diff/visual_diff.py" --ref ref.png --actual actual.png --text-boxes text_boxes.json --decoration-boxes decoration_boxes.json --scale 2`（`text_boxes.json`＝INGEST 自動生成、`decoration_boxes.json`＝RECONSTRUCT 自動生成。`--scale` は ingest と同値）。**`contentFidelity`（テキスト＋装飾除外の実コンテンツ忠実度）で判断**。残差が装飾背景なら構造はOK。
 3. `report.json` の `regions[]` が残るなら、その領域の `crops/region*_{ref,actual}.png` を Read して**局所修正** → 再描画 → 再比較
 4. 非テキスト領域が許容内になれば DONE
 
@@ -107,5 +112,5 @@ dev 起動（`BROWSER_OBSERVER_BLOCK_PRIVATE_IPS=false`）→ `http://localhost:
 - `/`（basePath無し）へ navigate（404）
 
 ## 参照
-- ツール詳細: `tools/README.md`
+- ツール詳細: `${CLAUDE_SKILL_DIR}/tools/README.md`
 - 連携スキル: `web-frontend-builder`（GENERATE被委譲）, `frontend-observation`（観測）, `playwright-e2e`（回帰）。原典URLとカスタマイズは README の「連携スキル」節。

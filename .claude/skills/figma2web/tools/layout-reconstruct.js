@@ -11,6 +11,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { area, contains, overlapRatio, inferLayout, inferPadding, right, bottom } from './lib/geometry.js';
 
 function parseArgs(argv) {
@@ -206,7 +207,7 @@ async function main() {
   await writeFile(join(args.in, 'decoration_boxes.json'), JSON.stringify(decorationBoxes));
   console.log(`Wrote ${outPath} + decoration_boxes.json (${decorationBoxes.length} regions)`);
   console.log(`  depth=${stats.maxDepth} text=${stats.textNodes} components=${stats.components} backgrounds=${stats.backgrounds} absoluteCandidates=${stats.absoluteCandidates}`);
-  console.log('Next: render overlay -> python3 tools/visual-diff/overlay.py --in ' + args.in);
+  console.log('Next: render overlay -> .context/figma2web/.venv/bin/python "' + fileURLToPath(new URL('visual-diff/overlay.py', import.meta.url)) + '" --in ' + args.in);
 }
 
 function agrees(mode, dir) {

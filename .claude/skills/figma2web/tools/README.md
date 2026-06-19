@@ -1,18 +1,25 @@
 # figma2web tools
 
 `figma2web` スキルが使う 3 つのツール。Figma REST から取得 → ジオメトリで構造再構築 → 実描画と参照PNGの差分、を担う。
-設計の根拠と全体像は `.claude/skills/figma2web/SKILL.md` を参照。
+設計の根拠と全体像は同じスキルの `SKILL.md` を参照。
+
+`tools/` は figma2web スキルに**同梱**されている。スキルから叩くときは常に絶対パス
+`${CLAUDE_SKILL_DIR}/tools/...` を使う（project/personal/plugin のどのモードでも CWD 非依存で解決）。
+以下の手動コマンドでは、clone した repo 内でのスキル位置を `SKILL` に入れて読み替える:
+
+```bash
+SKILL=.claude/skills/figma2web    # plugin 導入時は ${CLAUDE_SKILL_DIR}
+```
 
 ## セットアップ
 
 ```bash
-# Node ツール（依存ゼロ, Node 20+）
-node tools/figma-ingest.js --help        # 引数は下記
+# Node ツール（依存ゼロ, Node 20+ — npm install 不要）
+node "$SKILL/tools/figma-ingest.js" --help
 
-# Python 差分ツール（OpenCV/Pillow）
-cd tools/visual-diff
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+# Python 差分ツール（OpenCV/Pillow）— venv は対象プロジェクトの .context に作る
+python3 -m venv .context/figma2web/.venv
+.context/figma2web/.venv/bin/pip install -r "$SKILL/tools/visual-diff/requirements.txt"
 ```
 
 Figma PAT（scope **File content (read)**）は次のいずれかで渡す。argv・`.context`・`index.json`・ログには残さない（ADR-0001）。
@@ -25,10 +32,10 @@ Figma REST からフレームを取得し、正規化モデル・参照PNG・ア
 
 ```bash
 # 対象フレームの node-id を一覧
-FIGMA_TOKEN=… node tools/figma-ingest.js --url "<figma url>" --list
+FIGMA_TOKEN=… node "$SKILL/tools/figma-ingest.js" --url "<figma url>" --list
 
 # 取得
-FIGMA_TOKEN=… node tools/figma-ingest.js --url "<url>" --node 12:34 --out .context/figma --scale 2
+FIGMA_TOKEN=… node "$SKILL/tools/figma-ingest.js" --url "<url>" --node 12:34 --out .context/figma --scale 2
 ```
 
 出力 `.context/figma/<node-slug>/`:
@@ -44,7 +51,7 @@ FIGMA_TOKEN=… node tools/figma-ingest.js --url "<url>" --node 12:34 --out .con
 `model.json` の絶対ジオメトリから**候補 IR** を生成。レイヤーツリーは無視。
 
 ```bash
-node tools/layout-reconstruct.js --in .context/figma/<slug>
+node "$SKILL/tools/layout-reconstruct.js" --in .context/figma/<slug>
 ```
 
 やること（design §3.2）:
@@ -61,14 +68,14 @@ node tools/layout-reconstruct.js --in .context/figma/<slug>
 ### overlay.py — 早期構造チェック
 `ir-candidates.json` の枠を `ref.png` に重ねて目視確認用 `ir-overlay.png` を出す（コード生成前のゲート, design §3.3）。
 ```bash
-tools/visual-diff/.venv/bin/python tools/visual-diff/overlay.py --in .context/figma/<slug>
+.context/figma2web/.venv/bin/python "$SKILL/tools/visual-diff/overlay.py" --in .context/figma/<slug>
 ```
 凡例: 青=container 緑=text 橙=image 紫=icon 赤=component `*`=absolute候補
 
 ### visual_diff.py — ゲートA の領域別差分
 実描画スクショと `ref.png` を**領域別**に比較。テキスト領域は除外（フォントレンダラ差は想定ノイズ）。差分領域の crop を出してローカル修正に回す。
 ```bash
-tools/visual-diff/.venv/bin/python tools/visual-diff/visual_diff.py \
+.context/figma2web/.venv/bin/python "$SKILL/tools/visual-diff/visual_diff.py" \
   --ref .context/figma/<slug>/ref.png \
   --actual .context/figma/<slug>/actual.png \
   --out-dir .context/figma/<slug>/diff_out \

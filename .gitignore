@@ -1,7 +1,8 @@
 # figma2web — local/transient artifacts
 .context/
-tools/visual-diff/.venv/
-tools/node_modules/
+# Python venv for visual-diff now lives in the target project's .context
+# (.context/figma2web/.venv), already covered by .context/ above.
+.claude/skills/figma2web/tools/node_modules/
 **/__pycache__/
 *.pyc
 .env

@@ -328,7 +328,7 @@ npm test
 
 汎用の視覚 QA（パレット単調さ検査など）ではなく、Figma 再現用の 2 ゲートに置き換える:
 
-- **ゲート A（静的忠実度）**: デザイン幅固定のフリーズ描画で参照 PNG `.context/figma/<slug>/ref.png` と**領域別**差分（`tools/visual-diff`）。
+- **ゲート A（静的忠実度）**: デザイン幅固定のフリーズ描画で参照 PNG `.context/figma/<slug>/ref.png` と**領域別**差分（`${CLAUDE_SKILL_DIR}/../figma2web/tools/visual-diff`、figma2web スキルに同梱）。
 - **ゲート B（レスポンシブ / a11y / 状態）**: 375 / 750 / desktop での overflow・ランドマーク・hover/focus/disabled 等。ピクセル差分しない。
 
 ### 対象アプリ 規約（厳守）
